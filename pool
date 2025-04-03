@@ -1,0 +1,21 @@
+sudo apt update
+sudo apt install postgresql postgresql-contrib
+
+sudo apt update
+sudo apt install openjdk-11-jdk
+java -version
+
+/home/user/HikariCPExample
+│
+├── src/
+│   └── HikariCPExample.java
+└── libs/
+    ├── HikariCP-5.0.0.jar
+    └── postgresql-42.5.0.jar
+  
+
+slf4j-api-2.0.7.jar
+slf4j-api-2.0.7-tests.jar
+slf4j-api-2.0.7-sources.jar
+postgresql-42.5.0.jar
+HikariCP-5.0.0.jar
