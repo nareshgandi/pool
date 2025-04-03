@@ -19,3 +19,78 @@ slf4j-api-2.0.7-tests.jar
 slf4j-api-2.0.7-sources.jar
 postgresql-42.5.0.jar
 HikariCP-5.0.0.jar
+
+cat HikariTimeout.java
+```
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+public class HikariTimeout {
+    public static void main(String[] args) throws SQLException {
+        // Step 1: Configure HikariCP with a small pool size
+        HikariConfig config = new HikariConfig();
+        config.setJdbcUrl("jdbc:postgresql://10.58.66.3:5432/postgres"); // Replace with your database details
+        config.setUsername("postgres");
+        config.setPassword("postgres");
+        config.setMaximumPoolSize(2); // Set a small pool size (2 in this case)
+        config.setConnectionTimeout(5000); // Set the connection timeout to 30 seconds
+        config.setIdleTimeout(60000); // Optional: Set idle timeout
+        config.setMaxLifetime(60000); // Optional: Set max lifetime
+
+        HikariDataSource dataSource = new HikariDataSource(config);
+
+        // Step 2: Simulate multiple threads requesting connections from the pool
+        ExecutorService executor = Executors.newFixedThreadPool(5); // Create 5 threads to simulate heavy load
+
+        for (int i = 0; i < 5; i++) {
+            executor.submit(() -> {
+                Connection connection = null;
+                try {
+                    System.out.println(Thread.currentThread().getName() + " - Trying to get connection...");
+                    connection = dataSource.getConnection();
+                    System.out.println(Thread.currentThread().getName() + " - Got connection!");
+
+                    // Step 3: Use pg_sleep to simulate a long-running query on the database
+                    String query = "SELECT emp_name, pg_sleep(15) FROM emp"; // This will cause a 100-second delay for each row
+                    try (PreparedStatement stmt = connection.prepareStatement(query)) {
+                        System.out.println(Thread.currentThread().getName() + " - Executing query with pg_sleep...");
+                        ResultSet resultSet = stmt.executeQuery();
+
+                        // Process the results
+                        while (resultSet.next()) {
+                            // Retrieve the emp_name and print it
+                            String empName = resultSet.getString("emp_name");
+                            System.out.println(Thread.currentThread().getName() + " - Retrieved emp_name: " + empName);
+                        }
+
+                        System.out.println(Thread.currentThread().getName() + " - Query execution completed.");
+                    }
+
+                    connection.close(); // Close the connection after the query completes
+
+                } catch (SQLException e) {
+                    // Catch connection timeout exception
+                    System.out.println(Thread.currentThread().getName() + " - Failed to get connection: " + e.getMessage());
+                } finally {
+                    // Ensure the connection is returned to the pool in case of failure
+                    if (connection != null) {
+                        try {
+                            connection.close();
+                        } catch (SQLException e) {
+                            System.out.println("Error closing connection: " + e.getMessage());
+                        }
+                    }
+                }
+            });
+        }
+
+        executor.shutdown(); // Shutdown the executor after all tasks are submitted
+    }
+}
+```
