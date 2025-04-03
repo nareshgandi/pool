@@ -94,3 +94,68 @@ public class HikariTimeout {
     }
 }
 ```
+
+cat HikariCPExample.java
+
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+import java.sql.Connection;
+import java.sql.Statement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+
+public class HikariCPExample {
+
+    public static void main(String[] args) {
+        // Set up HikariCP configuration
+        HikariConfig config = new HikariConfig();
+
+        // Database connection parameters
+        config.setJdbcUrl("jdbc:postgresql://10.58.66.3:5432/postgres"); // Replace with your DB details
+        config.setUsername("postgres"); // Replace with your PostgreSQL username
+        config.setPassword("postgres"); // Replace with your PostgreSQL password
+
+        // Optional: Set additional connection pool settings
+        config.setMaximumPoolSize(10); // Maximum number of connections in the pool
+        config.setIdleTimeout(600000); // 10 minutes of idle timeout
+        config.setConnectionTimeout(30000); // 30 seconds to get a connection
+        config.setLeakDetectionThreshold(15000); // Detect leaks after 15 seconds
+
+        // Create a DataSource
+        HikariDataSource dataSource = new HikariDataSource(config);
+
+        // Try to get a connection from the pool
+        try (Connection connection = dataSource.getConnection()) {
+            System.out.println("Successfully connected to the PostgreSQL database!");
+
+            // Example query execution (if you want to print results from a query)
+            String query = "SELECT *, pg_sleep(20) FROM emp"; // Your desired query
+            System.out.println("Executing query: " + query);
+
+            // Execute the query
+            try (Statement stmt = connection.createStatement()) {
+                ResultSet rs = stmt.executeQuery(query);
+
+                // Print query results
+                if (!rs.next()) {
+                    System.out.println("No data found in the 'emp' table.");
+                } else {
+                    do {
+                        // Assuming 'emp_id' and 'emp_name' are column names in 'emp' table
+                        System.out.println("Employee ID: " + rs.getInt("emp_id"));
+                        System.out.println("Employee Name: " + rs.getString("emp_name"));
+                    } while (rs.next());
+                }
+            } catch (SQLException e) {
+                System.out.println("Error executing the query: " + e.getMessage());
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Failed to connect to the database: " + e.getMessage());
+        } finally {
+            // Close the DataSource when done
+            dataSource.close();
+        }
+    }
+}
+
